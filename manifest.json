@@ -1,0 +1,19 @@
+{
+  "skills": [
+    {
+      "name": "author-skill",
+      "version": "0.1.1",
+      "sha256": "5c7de45c5ff4805a8f12531a3a7e3b8776e70730adc99d1a539c645b2efb39e0"
+    },
+    {
+      "name": "aws-access",
+      "version": "0.1.0",
+      "sha256": "5068ccec04cace129b0da04919f119cb86e79986894df9c30ee72d2266a2aa78"
+    },
+    {
+      "name": "ripple",
+      "version": "0.1.0",
+      "sha256": "561dff90607ad16585c31798c7da0ffe5d3d6947f5f86fb9e966dc22e3581c0e"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+name: author-skill
+version: 0.1.1
+description: "새 quivo 스킬을 표준에 맞춰 생성한다. 헌법 + skill-template + Iron Law/BAD-GOOD/Red Flags 패턴 반영. SKILL.md, skill.yaml, trigger prompt, manifest 등록 + (선택) description 트리거 검증까지 안내."
+agents: [claude, codex]
+internal: false
+requires: []

@@ -1,0 +1,16 @@
+# quivo.yml — repository-level quivo configuration (committed).
+#
+# This file declares which GitHub repo the quivo CLI pulls skill releases from.
+# When you fork quivo for your company, set `repo` to YOUR fork. Every engineer
+# who clones your fork then gets the right skill source automatically — no need
+# to export QUIVO_REPO by hand.
+#
+# Resolution order for the skills repo:
+#   1. QUIVO_REPO environment variable (ad-hoc override)
+#   2. this file's `repo:` key
+#   3. the CLI's built-in default
+#
+# After forking:
+#   repo: my-company/quivo        # or my-company/our-skills
+
+repo: chordpli/quivo

@@ -1,0 +1,73 @@
+name: skill-triggering
+
+# LLM 호출 기반 트리거링 테스트.
+#
+# 비용/플레이크가 있어 자동 실행하지 않는다 (PR 마다 X).
+# 릴리스 직전 또는 새 스킬 추가 시 수동으로 트리거:
+#   GitHub UI → Actions → skill-triggering → Run workflow
+#
+# 요구사항:
+#   - repo secret `ANTHROPIC_API_KEY` (Claude Code CLI 인증용)
+#   - tests/skill-triggering/prompts/<skill-name>.txt 파일
+#
+# 자세한 패턴은 tests/skill-triggering/README.md 참조.
+
+on:
+  workflow_dispatch:
+    inputs:
+      retries:
+        description: 'Retries per skill'
+        required: false
+        default: '3'
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-tests:
+    name: skill trigger tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RETRIES: ${{ inputs.retries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify secret present
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not configured."
+            echo "Set it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Install Claude Code CLI
+        run: |
+          # 설치 명령은 환경에 따라 조정 — 공식 가이드 참조.
+          # 예시: npm install -g @anthropic-ai/claude-code
+          # 또는: brew install claude-code (macOS runner)
+          # CI 환경에 맞는 방식으로 교체.
+          npm install -g @anthropic-ai/claude-code || {
+            echo "::warning::Claude Code CLI install failed. Update this step per current install method."
+            exit 1
+          }
+          claude --version
+
+      - name: Install PR skills into workspace
+        run: |
+          python -m pip install -e .
+          QUIVO_LOCAL_SKILLS="$GITHUB_WORKSPACE" quivo init \
+            --agent claude \
+            --dir "$GITHUB_WORKSPACE" \
+            --policy "$GITHUB_WORKSPACE/.quivo/policy.md" \
+            --force
+          test -f "$GITHUB_WORKSPACE/.claude/skills/req-intake/SKILL.md"
+
+      - name: Run triggering tests
+        run: |
+          chmod +x tests/skill-triggering/*.sh
+          tests/skill-triggering/run-all.sh

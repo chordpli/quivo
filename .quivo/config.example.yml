@@ -1,0 +1,35 @@
+# .quivo/config.yml — per-engineer environment configuration (example)
+#
+# 1. Copy this file to `.quivo/config.yml` (gitignored).
+# 2. Fill in your environment-specific values.
+# 3. Skills read this file to resolve env-specific data at runtime.
+#
+# Resolution order for each value:
+#   1. CLI/inline argument provided to the skill
+#   2. Environment variable
+#   3. This config file
+#   4. Interactive prompt to the user
+#
+# Empty string ("") means "not configured — fall through to next resolver".
+#
+# The sections below are EXAMPLES tied to the bundled `aws-access` skill.
+# Delete what you don't use and add your own sections for your own skills.
+
+aws:
+  # AWS CLI profile name. Per-engineer (may differ across team members).
+  default_profile: ""              # e.g., my-company-admin
+  # AWS region for your resources.
+  default_region: ""               # e.g., ap-southeast-1
+  # AWS account ID (for verification / log paths).
+  account_id: ""                   # e.g., 000000000000
+
+# OPTIONAL — only if you extend `aws-access` with bastion SG IP registration
+# (see skills/aws-access/SKILL.md → "Extending"). Not used by the default skill.
+bastion:
+  members_sg_id: ""                # e.g., sg-0000000000000000
+
+cache:
+  # Discovery cache TTL in seconds.
+  ttl_seconds: 3600
+  # Cache directory (relative to project root). Always gitignored.
+  dir: .quivo/cache

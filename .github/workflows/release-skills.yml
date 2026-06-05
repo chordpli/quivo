@@ -1,0 +1,96 @@
+name: Release Skills Bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.2.0). Overrides skills/VERSION."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION=$(cat skills/VERSION | tr -d '[:space:]')
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=skills-v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML (for manifest generation)
+        run: pip install pyyaml
+
+      - name: Generate manifest.json
+        run: |
+          python - <<'EOF'
+          import hashlib, json, yaml
+          from pathlib import Path
+
+          root = Path("skills")
+          entries = []
+          for skill_dir in sorted(root.iterdir()):
+              if not skill_dir.is_dir():
+                  continue
+              yaml_path = skill_dir / "skill.yaml"
+              if not yaml_path.exists():
+                  continue
+              combined = b""
+              for fname in sorted(["skill.yaml", "SKILL.md", "setup.sh", "setup.ps1"]):
+                  fpath = skill_dir / fname
+                  if fpath.exists():
+                      combined += fpath.read_bytes()
+              sha = hashlib.sha256(combined).hexdigest()
+              with open(yaml_path) as f:
+                  meta = yaml.safe_load(f)
+              entries.append({
+                  "name": meta["name"],
+                  "version": meta["version"],
+                  "sha256": sha,
+              })
+          manifest = {"skills": entries}
+          Path("manifest.json").write_text(
+              json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+          )
+          print("Generated manifest.json:")
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+      - name: Build skills-bundle.tar.gz
+        run: |
+          tar -czf skills-bundle.tar.gz skills/ manifest.json .quivo/policy.md .quivo/config.example.yml
+          echo "Bundle size: $(du -sh skills-bundle.tar.gz | cut -f1)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Skills ${{ steps.version.outputs.tag }}"
+          body: |
+            Skills bundle release `${{ steps.version.outputs.tag }}`.
+
+            Install with:
+            ```bash
+            uvx quivo init --release ${{ steps.version.outputs.tag }}
+            ```
+          files: skills-bundle.tar.gz
+          make_latest: true

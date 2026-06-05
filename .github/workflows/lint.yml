@@ -1,0 +1,46 @@
+name: lint
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+      - 'scripts/lint-skills.py'
+      - 'scripts/check-trigger-disambiguation.py'
+      - 'tests/skill-triggering/**'
+      - 'docs/quivo/**'
+      - '.github/workflows/lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'skills/**'
+      - 'scripts/lint-skills.py'
+      - 'scripts/check-trigger-disambiguation.py'
+      - 'tests/skill-triggering/**'
+      - 'docs/quivo/**'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-skills:
+    name: lint SKILL.md files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run lint-skills
+        run: python3 scripts/lint-skills.py
+
+      - name: Check trigger disambiguation (prompts rank their own skill)
+        run: python3 scripts/check-trigger-disambiguation.py

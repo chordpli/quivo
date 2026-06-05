@@ -1,0 +1,42 @@
+[project]
+name = "quivo"
+version = "0.1.0"
+description = "Forkable, multi-LLM skill distribution for AI coding agents (Claude Code, Codex, and more)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+]
+dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+    "pyyaml>=6",
+    "httpx>=0.27",
+    "packaging>=24",
+]
+
+[project.scripts]
+quivo = "quivo.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/chordpli/quivo"
+Repository = "https://github.com/chordpli/quivo"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quivo"]
