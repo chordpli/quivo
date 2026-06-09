@@ -203,6 +203,187 @@ export GH_TOKEN=github_pat_...
 You can also let the CLI prompt for a token. The token is saved to
 `~/.quivo/token`.
 
+## Add a New Skill
+
+The most common maintenance task in a company quivo repository is adding a new
+skill under `skills/`. A skill is managed as one directory. At minimum, it needs
+`SKILL.md` and `skill.yaml`.
+
+You can create a skill manually, but in practice it is fairly easy to miss a
+file or validation step. The recommended workflow is to have an LLM use the
+bundled `author-skill` to draft the skill, then have a human review the purpose,
+trigger boundary, and validation results.
+
+```text
+skills/<skill-name>/
+  SKILL.md
+  skill.yaml
+  setup.sh      # optional
+  setup.ps1     # optional
+```
+
+For the fastest and safest path, use the bundled `author-skill`. After installing
+quivo skills into Claude Code or Codex, ask the LLM for something like:
+
+```text
+I want to add a new quivo skill. Purpose: <what>. Trigger moment: <when>. Inputs: <what>. Outputs: <what>.
+```
+
+Use the manual steps below when reviewing what `author-skill` produced, or when
+you need to write a skill without automation.
+
+1. Choose a skill name.
+
+Use kebab-case.
+
+```bash
+export SKILL_NAME="my-new-skill"
+mkdir -p "skills/$SKILL_NAME"
+```
+
+2. Write `skill.yaml`.
+
+```yaml
+name: my-new-skill
+version: 0.1.0
+description: "One or two sentences explaining what this skill does and when to use it."
+agents: [claude, codex]
+internal: false
+requires: []
+```
+
+The `description` matters a lot. Agents use it to decide which skill to trigger
+automatically. If neighboring skills are similar, make the boundary explicit.
+
+3. Write `SKILL.md`.
+
+`SKILL.md` must start with frontmatter and must include the required body
+sections. Follow [quivo/skill-template.md](./quivo/skill-template.md) for the
+full standard.
+
+```markdown
+---
+name: my-new-skill
+description: One or two sentences explaining what this skill does and when to use it.
+version: 0.1.0
+scope: general
+agents: [claude, codex]
+risk: low
+policy_injection: required
+outputs: []
+---
+
+# My New Skill
+
+> **The Iron Law**: The one rule this skill must never break.
+
+You are operating as ...
+
+## When to use
+
+## Inputs
+
+## Process
+
+## Iron Laws
+
+## Failure modes
+```
+
+Required frontmatter fields are `name`, `description`, `version`, `scope`,
+`agents`, `risk`, `policy_injection`, and `outputs`.
+
+Required body sections are `## When to use`, `## Inputs`, `## Process`,
+`## Iron Laws`, and `## Failure modes`.
+
+4. Add setup scripts if needed.
+
+If the skill needs tool checks or environment setup before use, put `setup.sh`
+or `setup.ps1` in the same directory. quivo copies these files during install.
+
+5. Add a trigger prompt.
+
+```bash
+mkdir -p tests/skill-triggering/prompts
+printf '%s\n' "A natural-language request a user would make when they need this skill." \
+  > "tests/skill-triggering/prompts/$SKILL_NAME.txt"
+```
+
+Avoid naming the skill directly in the prompt. Use the kind of phrase a real user
+would type. That makes it easier to see whether the `description` disambiguates
+the skill correctly.
+
+6. Update `manifest.json`.
+
+For local validation and review, add the new skill version and sha256 to
+`manifest.json`. The GitHub Release workflow also regenerates the manifest, but
+keeping the local file current makes PR checks and review easier.
+
+```bash
+python3 - <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+
+name = os.environ.get("SKILL_NAME", "my-new-skill")
+skill_dir = Path("skills") / name
+
+combined = b""
+for fname in sorted(["skill.yaml", "SKILL.md", "setup.sh", "setup.ps1"]):
+    path = skill_dir / fname
+    if path.exists():
+        combined += path.read_bytes()
+
+sha = hashlib.sha256(combined).hexdigest()
+
+manifest_path = Path("manifest.json")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+version = None
+for line in (skill_dir / "skill.yaml").read_text(encoding="utf-8").splitlines():
+    if line.startswith("version:"):
+        version = line.split(":", 1)[1].strip().strip('"')
+        break
+if version is None:
+    raise SystemExit("version not found in skill.yaml")
+
+entry = {"name": name, "version": version, "sha256": sha}
+manifest["skills"] = [s for s in manifest["skills"] if s["name"] != name]
+manifest["skills"].append(entry)
+manifest["skills"].sort(key=lambda s: s["name"])
+manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+PY
+```
+
+7. Bump the skills bundle version.
+
+For a release-worthy change, bump `skills/VERSION` using semver.
+
+```bash
+echo "0.2.0" > skills/VERSION
+```
+
+8. Validate the skill.
+
+```bash
+python3 scripts/lint-skills.py
+python3 scripts/check-trigger-disambiguation.py
+scripts/test-skill.sh "$SKILL_NAME"
+```
+
+It is also worth testing a local install:
+
+```bash
+TMPPROJECT="$(mktemp -d "${TMPDIR:-/tmp}/quivo-skill-test.XXXXXX")"
+QUIVO_LOCAL_SKILLS="$PWD" quivo init --agent both --dir "$TMPPROJECT" --no-policy
+quivo list --dir "$TMPPROJECT"
+```
+
+The install path is healthy when the new skill appears under Claude Code's
+`.claude/skills/<skill-name>/` and Codex's `.codex/prompts/<skill-name>.md` plus
+`.codex/scripts/<skill-name>/`.
+
 ## Install from a local checkout
 
 Use `QUIVO_LOCAL_SKILLS` when you want to test before publishing a release, or

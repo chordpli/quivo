@@ -201,6 +201,183 @@ export GH_TOKEN=github_pat_...
 또는 CLI가 물어볼 때 토큰을 입력해도 됩니다. 입력한 토큰은 `~/.quivo/token`에
 저장됩니다.
 
+## 새 스킬 추가하기
+
+회사 저장소에서 가장 자주 하는 유지보수 작업은 `skills/` 아래에 새 스킬을 추가하는
+것입니다. 스킬은 하나의 폴더로 관리하고, 최소한 `SKILL.md`와 `skill.yaml`이 필요합니다.
+
+수동으로 직접 만들 수도 있지만, 실제로는 챙길 파일과 검증 단계가 많아서 꽤 복잡합니다.
+권장 흐름은 LLM에게 `author-skill`을 사용하게 해서 초안을 만들고, 사람이 목적·트리거
+경계·검증 결과를 리뷰하는 방식입니다.
+
+```text
+skills/<skill-name>/
+  SKILL.md
+  skill.yaml
+  setup.sh      # 선택
+  setup.ps1     # 선택
+```
+
+가장 빠르고 안전한 시작은 번들된 `author-skill`을 쓰는 것입니다. Claude Code나 Codex에
+quivo 스킬을 설치한 뒤 다음처럼 LLM에게 요청하면 됩니다.
+
+```text
+새 quivo 스킬을 추가하고 싶어. 목적은 <무엇>, 호출 시점은 <언제>, 입력은 <무엇>, 출력은 <무엇>이야.
+```
+
+아래 수동 절차는 `author-skill`이 만들어준 결과를 검토하거나, 자동화 없이 직접 작성해야 할 때
+사용합니다.
+
+1. 스킬 이름을 정합니다.
+
+이름은 kebab-case를 사용합니다.
+
+```bash
+export SKILL_NAME="my-new-skill"
+mkdir -p "skills/$SKILL_NAME"
+```
+
+2. `skill.yaml`을 작성합니다.
+
+```yaml
+name: my-new-skill
+version: 0.1.0
+description: "무엇을 하는 스킬인지, 언제 사용해야 하는지 한두 문장으로 설명한다."
+agents: [claude, codex]
+internal: false
+requires: []
+```
+
+`description`은 매우 중요합니다. 에이전트는 이 설명을 보고 어떤 스킬을 자동으로
+불러올지 판단합니다. 비슷한 스킬이 있다면 경계를 분명히 써야 합니다.
+
+3. `SKILL.md`를 작성합니다.
+
+`SKILL.md`는 맨 위에 frontmatter가 있어야 하고, 본문에는 필수 섹션이 있어야 합니다.
+자세한 표준은 [quivo/skill-template.md](./quivo/skill-template.md)를 따릅니다.
+
+```markdown
+---
+name: my-new-skill
+description: 무엇을 하는 스킬인지, 언제 사용해야 하는지 한두 문장으로 설명한다.
+version: 0.1.0
+scope: general
+agents: [claude, codex]
+risk: low
+policy_injection: required
+outputs: []
+---
+
+# My New Skill
+
+> **The Iron Law**: 이 스킬이 절대 깨면 안 되는 핵심 규칙.
+
+You are operating as ...
+
+## When to use
+
+## Inputs
+
+## Process
+
+## Iron Laws
+
+## Failure modes
+```
+
+필수 frontmatter 필드는 `name`, `description`, `version`, `scope`, `agents`, `risk`,
+`policy_injection`, `outputs`입니다.
+
+필수 본문 섹션은 `## When to use`, `## Inputs`, `## Process`, `## Iron Laws`,
+`## Failure modes`입니다.
+
+4. 필요한 경우 셋업 스크립트를 추가합니다.
+
+스킬 실행 전 도구 확인이나 환경 설정이 필요하면 `setup.sh` 또는 `setup.ps1`을 같은
+폴더에 둡니다. quivo는 설치할 때 이 파일들을 함께 복사합니다.
+
+5. trigger prompt를 추가합니다.
+
+```bash
+mkdir -p tests/skill-triggering/prompts
+printf '%s\n' "사용자가 이 스킬을 부를 법한 자연어 요청을 여기에 쓴다." \
+  > "tests/skill-triggering/prompts/$SKILL_NAME.txt"
+```
+
+prompt에는 가능하면 스킬 이름을 직접 쓰지 않습니다. 실제 사용자가 말할 법한 표현을
+넣어야 `description`이 제대로 구분되는지 확인하기 좋습니다.
+
+6. `manifest.json`을 갱신합니다.
+
+로컬 검증과 리뷰를 위해 새 스킬의 version과 sha256을 `manifest.json`에 반영합니다.
+GitHub Release workflow도 manifest를 다시 만들지만, PR 단계에서는 로컬 manifest가
+맞아야 확인하기 쉽습니다.
+
+```bash
+python3 - <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+
+name = os.environ.get("SKILL_NAME", "my-new-skill")
+skill_dir = Path("skills") / name
+
+combined = b""
+for fname in sorted(["skill.yaml", "SKILL.md", "setup.sh", "setup.ps1"]):
+    path = skill_dir / fname
+    if path.exists():
+        combined += path.read_bytes()
+
+sha = hashlib.sha256(combined).hexdigest()
+
+manifest_path = Path("manifest.json")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+version = None
+for line in (skill_dir / "skill.yaml").read_text(encoding="utf-8").splitlines():
+    if line.startswith("version:"):
+        version = line.split(":", 1)[1].strip().strip('"')
+        break
+if version is None:
+    raise SystemExit("version not found in skill.yaml")
+
+entry = {"name": name, "version": version, "sha256": sha}
+manifest["skills"] = [s for s in manifest["skills"] if s["name"] != name]
+manifest["skills"].append(entry)
+manifest["skills"].sort(key=lambda s: s["name"])
+manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+PY
+```
+
+7. 스킬 번들 버전을 올립니다.
+
+릴리스할 변경이라면 `skills/VERSION`을 semver로 올립니다.
+
+```bash
+echo "0.2.0" > skills/VERSION
+```
+
+8. 검증합니다.
+
+```bash
+python3 scripts/lint-skills.py
+python3 scripts/check-trigger-disambiguation.py
+scripts/test-skill.sh "$SKILL_NAME"
+```
+
+마지막으로 로컬 설치까지 확인하면 더 좋습니다.
+
+```bash
+TMPPROJECT="$(mktemp -d "${TMPDIR:-/tmp}/quivo-skill-test.XXXXXX")"
+QUIVO_LOCAL_SKILLS="$PWD" quivo init --agent both --dir "$TMPPROJECT" --no-policy
+quivo list --dir "$TMPPROJECT"
+```
+
+새 스킬이 Claude Code 쪽 `.claude/skills/<skill-name>/`와 Codex 쪽
+`.codex/prompts/<skill-name>.md`, `.codex/scripts/<skill-name>/`에 생기면 설치 경로가
+정상입니다.
+
 ## 로컬 체크아웃에서 바로 설치하기
 
 스킬 릴리스를 만들기 전이거나 오프라인에서 테스트할 때는 `QUIVO_LOCAL_SKILLS`를
