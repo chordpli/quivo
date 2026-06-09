@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-labelledby="title desc">
+  <title id="title">quivo init interactive CLI capture</title>
+  <desc id="desc">Terminal-style capture showing quivo init asking which AI agent to install skills for, with choices for claude, codex, and both.</desc>
+  <rect width="1120" height="620" rx="18" fill="#17191f"/>
+  <rect x="1" y="1" width="1118" height="618" rx="18" fill="none" stroke="#303541"/>
+  <rect x="0" y="0" width="1120" height="52" rx="18" fill="#222630"/>
+  <circle cx="30" cy="27" r="7" fill="#ff5f57"/>
+  <circle cx="54" cy="27" r="7" fill="#febc2e"/>
+  <circle cx="78" cy="27" r="7" fill="#28c840"/>
+  <text x="560" y="34" text-anchor="middle" fill="#b9c0cc" font-family="Menlo, Consolas, 'Liberation Mono', monospace" font-size="15">Terminal</text>
+  <g font-family="Menlo, Consolas, 'Liberation Mono', monospace" font-size="22">
+    <text x="36" y="90" fill="#8bd5ff">$ <tspan fill="#f2f5f8">quivo init</tspan></text>
+    <text x="36" y="140" fill="#f2f5f8">Which AI agent are you installing skills for?</text>
+    <text x="56" y="182" fill="#8bd5ff">1</text>
+    <text x="92" y="182" fill="#f2f5f8">claude</text>
+    <text x="188" y="182" fill="#9aa4b2">- Claude Code (.claude/skills/)</text>
+    <text x="56" y="224" fill="#8bd5ff">2</text>
+    <text x="92" y="224" fill="#f2f5f8">codex</text>
+    <text x="188" y="224" fill="#9aa4b2">- Codex CLI (.codex/prompts/)</text>
+    <text x="56" y="266" fill="#8bd5ff">3</text>
+    <text x="92" y="266" fill="#f2f5f8">both</text>
+    <text x="188" y="266" fill="#9aa4b2">- Claude Code + Codex CLI</text>
+    <text x="36" y="324" fill="#f2f5f8">Select [1/2/3/claude/codex/both] (3): <tspan fill="#72f1b8">3</tspan></text>
+    <text x="36" y="388" fill="#72f1b8">Installing skills</text>
+    <text x="252" y="388" fill="#f2f5f8">-&gt; agent=both</text>
+    <text x="36" y="438" fill="#9aa4b2">Using local skills: /path/to/quivo</text>
+    <text x="36" y="492" fill="#f2f5f8">Installed Skills</text>
+    <text x="36" y="534" fill="#8bd5ff">author-skill</text>
+    <text x="238" y="534" fill="#f2f5f8">0.1.1</text>
+    <text x="36" y="574" fill="#8bd5ff">aws-access</text>
+    <text x="238" y="574" fill="#f2f5f8">0.1.0</text>
+    <text x="420" y="574" fill="#8bd5ff">ripple</text>
+    <text x="526" y="574" fill="#f2f5f8">0.1.0</text>
+    <text x="760" y="574" fill="#72f1b8">Done.</text>
+  </g>
+</svg>

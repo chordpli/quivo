@@ -5,6 +5,10 @@
   Fork it, fill it with your company's skills, and sync them into Claude Code, Codex, and more — all from one versioned repo.
 </p>
 
+<p align="center">
+  English · <a href="./README.ko.md">한국어</a> · <a href="./docs/GUIDE.md">Guide</a>
+</p>
+
 ---
 
 ## What is quivo?
@@ -32,6 +36,8 @@ skills, and your company now has a single source of truth:
 ## Quickstart
 
 Requirements: Python 3.10+, [`uv`](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
+
+For step-by-step walkthroughs with CLI examples and local testing, see **[Guide](./docs/GUIDE.md)** / **[한국어 길라잡이](./docs/GUIDE.ko.md)**.
 
 **Install it (recommended)** — puts a real `quivo` on your PATH, then use `quivo` anywhere:
 
