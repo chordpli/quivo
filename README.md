@@ -1,6 +1,10 @@
 <h1 align="center">quivo</h1>
 
 <p align="center">
+  <img src="./docs/assets/quivo-icon.png" alt="quivo icon" width="160">
+</p>
+
+<p align="center">
   <b>Forkable, multi-LLM skill distribution for AI coding agents.</b><br>
   Fork it, fill it with your company's skills, and sync them into Claude Code, Codex, and more — all from one versioned repo.
 </p>

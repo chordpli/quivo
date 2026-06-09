@@ -1,6 +1,10 @@
 <h1 align="center">quivo</h1>
 
 <p align="center">
+  <img src="./docs/assets/quivo-icon.png" alt="quivo 아이콘" width="160">
+</p>
+
+<p align="center">
   <b>AI 코딩 에이전트용 스킬을 포크해서 배포하는 멀티 LLM 스킬 저장소.</b><br>
   회사의 스킬을 한 레포에 담아 Claude Code, Codex 등 여러 도구에 같은 버전으로 동기화합니다.
 </p>
