@@ -379,9 +379,9 @@ outputs:
 
 스킬 저자가 외워야 할 3가지:
 
-1. **모든 directive 는 본문에**. Codex 어댑터가 frontmatter 를 제거하므로 frontmatter 에는 메타데이터만.
+1. **모든 directive 는 본문에**. frontmatter 는 메타데이터·매칭용 — validator 허용 키(`name`/`description`/`license`/`allowed-tools`/`metadata`) 외의 키(`version`, `outputs` 등)는 설치 시 `metadata:` 아래로 이동한다. 지시문은 반드시 본문에.
 2. **Claude 전용 UI 요소 회피** (예: `<details>` 토글). 두 에이전트에서 동일하게 보여야 함.
-3. **경로 참조는 `.claude/skills/<name>/` 형식**. Codex 변환 시 `.codex/scripts/<name>/` 로 자동 치환됨.
+3. **경로 참조는 `.claude/skills/<name>/` 형식**. 설치 시 에이전트별 `q-` prefix 경로(Claude `.claude/skills/q-<name>/`, Codex `.agents/skills/q-<name>/`)로 자동 치환되고, 호출명도 `q-<name>` 이 된다.
 
 상세 어댑터 동작, `_append_policy`, `EXAMPLES.md` 같은 사이드카 지원 여부 등은 **[`reference/agent-adapters.md`](reference/agent-adapters.md)** 참조.
 

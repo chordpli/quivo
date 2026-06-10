@@ -20,7 +20,7 @@ chordpli/quivo  ── fork ──▶  my-company/quivo
                                   │
                                   ▼  엔지니어 머신
                               quivo init / quivo sync
-                                  → .claude/skills/, .codex/prompts/ ...
+                                  → .claude/skills/, .agents/skills/ ...
 ```
 
 핵심: 포크하면 업스트림과 끊긴다. 그게 **의도**다 — 회사가 자기 스킬을 완전히 소유한다.
@@ -145,8 +145,8 @@ quivo init --agent both
 
 | 하네스 | 설치 위치 | 상태 |
 |--------|-----------|------|
-| Claude Code | `.claude/skills/<name>/SKILL.md` | 지원 |
-| Codex CLI | `.codex/prompts/<name>.md` + `.codex/scripts/<name>/` | 지원 |
+| Claude Code | `.claude/skills/q-<name>/SKILL.md` | 지원 |
+| Codex CLI | `.agents/skills/q-<name>/SKILL.md` (open agent skills 표준) | 지원 |
 | (그 외) | 어댑터 추가로 확장 | 로드맵 — [open-source-plan.md](./open-source-plan.md) |
 
 새 하네스 지원은 `src/quivo/adapters/` 에 `BaseAdapter` 구현 1개를 추가하면 된다.

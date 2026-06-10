@@ -88,8 +88,8 @@ quivo init
 
 | 선택 | 입력값 | 설치 위치 |
 |------|--------|-----------|
-| `1` | `claude` | `.claude/skills/` |
-| `2` | `codex` | `.codex/prompts/`, `.codex/scripts/` |
+| `1` | `claude` | `.claude/skills/q-<name>/` |
+| `2` | `codex` | `.agents/skills/q-<name>/` |
 | `3` | `both` | Claude Code와 Codex 둘 다 |
 
 자동화 스크립트나 문서에서 대화형 선택을 피하고 싶다면 `--agent`를 직접 지정합니다.
@@ -115,9 +115,10 @@ quivo init --agent codex
 설치가 끝나면 대상 프로젝트에 다음 파일들이 생깁니다.
 
 ```text
-.claude/skills/<skill-name>/SKILL.md
-.codex/prompts/<skill-name>.md
-.codex/scripts/<skill-name>/SKILL.md
+.claude/skills/q-<skill-name>/SKILL.md
+.agents/skills/q-<skill-name>/SKILL.md
+CLAUDE.md          # quivo 스킬 목록 관리 블록
+AGENTS.md          # quivo 스킬 목록 관리 블록
 .quivo-lock.json
 ```
 
@@ -146,13 +147,18 @@ quivo list --dir /path/to/your/project
 quivo sync
 ```
 
+모든 sync는 **클린 재설치**입니다: 이전 설치본(`.quivo-lock.json`에 기록된
+모든 파일)을 먼저 제거한 뒤 현재 레이아웃으로 새로 설치합니다. 레이아웃이
+바뀌어도 구버전 파일이 쌓이지 않고, 스킬 소스에서 제거된 스킬은 함께
+언인스톨됩니다.
+
 특정 프로젝트를 지정하려면 다음처럼 실행합니다.
 
 ```bash
 quivo sync --dir /path/to/your/project
 ```
 
-이미 파일이 있고 quivo가 덮어쓰기를 거부하면, 내용을 확인한 뒤 필요할 때만
+quivo가 직접 쓰지 않은 파일과 충돌하면 내용을 확인한 뒤 필요할 때만
 `--force`를 붙입니다.
 
 ```bash
@@ -374,9 +380,8 @@ QUIVO_LOCAL_SKILLS="$PWD" quivo init --agent both --dir "$TMPPROJECT" --no-polic
 quivo list --dir "$TMPPROJECT"
 ```
 
-새 스킬이 Claude Code 쪽 `.claude/skills/<skill-name>/`와 Codex 쪽
-`.codex/prompts/<skill-name>.md`, `.codex/scripts/<skill-name>/`에 생기면 설치 경로가
-정상입니다.
+새 스킬이 Claude Code 쪽 `.claude/skills/q-<skill-name>/`와 Codex 쪽
+`.agents/skills/q-<skill-name>/`에 생기면 설치 경로가 정상입니다.
 
 ## 로컬 체크아웃에서 바로 설치하기
 
@@ -505,9 +510,8 @@ All skills are up to date.
 마지막으로 실제 파일이 만들어졌는지 확인합니다.
 
 ```bash
-test -f "$SMOKEDIR/.claude/skills/author-skill/SKILL.md"
-test -f "$SMOKEDIR/.codex/prompts/author-skill.md"
-test -f "$SMOKEDIR/.codex/scripts/author-skill/SKILL.md"
+test -f "$SMOKEDIR/.claude/skills/q-author-skill/SKILL.md"
+test -f "$SMOKEDIR/.agents/skills/q-author-skill/SKILL.md"
 echo "smoke files ok"
 ```
 
@@ -545,7 +549,7 @@ rm -rf "$VENVDIR" "$SMOKEDIR"
 | `pytest`가 없음 | 가상환경 안에서 `"$VENVDIR/bin/python" -m pip install -e . pytest`를 실행했는지 확인합니다. |
 | GitHub API 오류 | 비공개 저장소라면 `GH_TOKEN` 또는 `GITHUB_TOKEN`을 설정합니다. |
 | 릴리스 다운로드 없이 테스트하고 싶음 | `QUIVO_LOCAL_SKILLS="$PWD"`를 붙여 local 모드로 실행합니다. |
-| 기존 파일과 충돌 | 대상 프로젝트의 기존 `.claude`, `.codex` 파일을 확인한 뒤 필요하면 `--force`를 사용합니다. |
+| 기존 파일과 충돌 | 대상 프로젝트의 기존 `.claude/skills`, `.agents/skills` 파일을 확인한 뒤 필요하면 `--force`를 사용합니다. |
 | `quivo sync`가 실패 | 대상 프로젝트에 `.quivo-lock.json`이 있는지 확인합니다. 없다면 먼저 `quivo init`을 실행합니다. |
 
 ## 다음에 읽을 문서

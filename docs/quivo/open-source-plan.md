@@ -57,8 +57,9 @@ QUIVO_REPO 환경변수  >  레포 루트 quivo.yml 의 repo:  >  내장 기본�
 ### 3.3 멀티 LLM 어댑터 (`src/quivo/adapters/`)
 
 `BaseAdapter` 추상 클래스 + 하네스별 구현:
-- `ClaudeAdapter` → `.claude/skills/<name>/SKILL.md` (frontmatter 보존)
-- `CodexAdapter` → `.codex/prompts/<name>.md`(frontmatter strip + `# /<name>` 헤더) + `.codex/scripts/<name>/`(sidecar 계약)
+- `ClaudeAdapter` → `.claude/skills/q-<name>/SKILL.md` (frontmatter 보존, `name:` 은 `q-` prefix)
+- `CodexAdapter` → `.agents/skills/q-<name>/SKILL.md` (frontmatter 보존 — Codex 가 open agent skills 표준에 따라 `.agents/skills/` 를 네이티브 스캔)
+- 공통: `CLAUDE.md`/`AGENTS.md` 관리 블록 유지, 레거시 레이아웃 자동 정리 (spec-kit 차용)
 
 새 하네스 = 어댑터 1개 추가. 변환 규칙은 [`reference/agent-adapters.md`](./reference/agent-adapters.md).
 

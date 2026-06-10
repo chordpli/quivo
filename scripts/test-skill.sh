@@ -199,15 +199,22 @@ runner = CliRunner()
 result = runner.invoke(app, ['init', '--agent', 'both', '--dir', '$TMPDIR_OUT', '--force'])
 if result.exit_code != 0:
     sys.exit(1)
-claude_policy = Path('$TMPDIR_OUT/.claude/skills/req-intake/SKILL.md').read_text(encoding='utf-8')
-codex_policy = Path('$TMPDIR_OUT/.codex/prompts/req-intake.md').read_text(encoding='utf-8')
-codex_contract = Path('$TMPDIR_OUT/.codex/scripts/req-intake/SKILL.md').read_text(encoding='utf-8')
+claude_dirs = sorted(p.name for p in Path('$TMPDIR_OUT/.claude/skills').iterdir() if p.is_dir())
+codex_dirs = sorted(p.name for p in Path('$TMPDIR_OUT/.agents/skills').iterdir() if p.is_dir())
+if not claude_dirs or claude_dirs != codex_dirs or not all(d.startswith('q-') for d in claude_dirs):
+    sys.exit(1)
+first = claude_dirs[0]
+claude_md = Path('$TMPDIR_OUT/.claude/skills/' + first + '/SKILL.md').read_text(encoding='utf-8')
+codex_md = Path('$TMPDIR_OUT/.agents/skills/' + first + '/SKILL.md').read_text(encoding='utf-8')
 ok = (
-    '## Company Policy (from .quivo/policy.md)' in claude_policy
-    and '## Company Policy (from .quivo/policy.md)' in codex_policy
-    and codex_contract.startswith('---')
-    and 'outputs:' in codex_contract
-    and '## Company Policy (from .quivo/policy.md)' in codex_contract
+    claude_md.startswith('---')
+    and codex_md.startswith('---')
+    and ('name: ' + first) in claude_md
+    and ('name: ' + first) in codex_md
+    and '## Company Policy (from .quivo/policy.md)' in claude_md
+    and '## Company Policy (from .quivo/policy.md)' in codex_md
+    and Path('$TMPDIR_OUT/CLAUDE.md').exists()
+    and Path('$TMPDIR_OUT/AGENTS.md').exists()
 )
 sys.exit(0 if ok else 1)
 " >/dev/null 2>&1
@@ -215,7 +222,7 @@ sys.exit(0 if ok else 1)
   set -e
   if [[ "$STATUS" -eq 0 ]]; then
     CLAUDE_COUNT=$(ls "$TMPDIR_OUT/.claude/skills/" 2>/dev/null | wc -l | tr -d ' ')
-    CODEX_COUNT=$(ls "$TMPDIR_OUT/.codex/prompts/" 2>/dev/null | wc -l | tr -d ' ')
+    CODEX_COUNT=$(ls "$TMPDIR_OUT/.agents/skills/" 2>/dev/null | wc -l | tr -d ' ')
     say_ok "quivo init: claude=$CLAUDE_COUNT  codex=$CODEX_COUNT"
   else
     say_fail "quivo init dry-run failed"

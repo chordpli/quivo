@@ -12,7 +12,7 @@
 권한은 세 단계를 거쳐 흐른다: 스킬이 선언하고 → 조직이 부여하고 → 실행 환경이 강제한다.
 
 1. **SKILL.md 본문 `## Inputs` 섹션 — 선언**
-   스킬 저자가 자신의 스킬이 필요로 하는 도구/MCP를 자연어로 명시한다. 예: "Linear MCP 호출 필요". 본문에 두는 이유는 헌법 #3 (Parity) — Codex 변환 시 frontmatter는 제거되므로.
+   스킬 저자가 자신의 스킬이 필요로 하는 도구/MCP를 자연어로 명시한다. 예: "Linear MCP 호출 필요". 본문에 두는 이유는 헌법 #3 (Parity) — validator 비허용 frontmatter 키는 설치 시 `metadata:` 아래로 이동하고, 에이전트가 지시문으로 읽는 보장은 본문뿐이므로.
 
 2. **`.quivo/policy.md` — 부여 의도**
    조직 owner가 어떤 스킬에 어떤 권한을 줄지 마크다운 표로 선언한다. 예: "linear-split → linear_mcp 허용". 부여되지 않은 권한은 허용되지 않은 것이다.
@@ -42,7 +42,7 @@
 - **MUST**: MCP 사용 시 `**MCP**:` 접두사로 표기. lint-skills 가 이 패턴을 검색해 manifest 생성.
 - **MUST**: 특정 bash 명령이 필요하면 `**Bash**:` 접두사 + 명령 패턴.
 - **MUST NOT**: 본문 어딘가에 묻혀서 적지 말 것. `Inputs` 섹션 외에 흩어지면 lint·정책 매핑이 어려움.
-- frontmatter 에 `permissions:` 같은 9번째 필드를 추가하지 않는다 — Codex 변환 시 frontmatter 가 사라지기 때문 (헌법 #3).
+- frontmatter 에 `permissions:` 같은 9번째 필드를 추가하지 않는다 — validator 비허용 키라 설치 시 `metadata:` 아래로 이동해 에이전트가 읽지 않기 때문 (헌법 #3).
 
 ---
 
@@ -120,7 +120,7 @@
 ```
 
 ```jsonc
-// .codex/* (Codex CLI 권한 설정 — Codex CLI 매뉴얼 따름)
+// ~/.codex/config.toml (Codex CLI 권한·스킬 설정 — Codex CLI 매뉴얼 따름)
 ```
 
 ### v0.2 — 자동

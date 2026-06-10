@@ -72,8 +72,11 @@ quivo init
 
 `quivo init`은 현재 프로젝트에 번들 예제 스킬을 설치합니다.
 
-- Claude Code: `.claude/skills/<name>/`
-- Codex CLI: `.codex/prompts/<name>.md` + `.codex/scripts/<name>/`
+- Claude Code: `.claude/skills/q-<name>/` (호출명 `/q-<name>`)
+- Codex CLI: `.agents/skills/q-<name>/` (open agent skills 표준, 호출명 `$q-<name>`)
+
+설치 시 `CLAUDE.md` / `AGENTS.md`에 스킬 목록 관리 블록을 유지하고,
+구버전 quivo가 남긴 설치 경로를 자동 정리합니다.
 
 ---
 
