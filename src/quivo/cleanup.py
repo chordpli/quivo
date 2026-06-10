@@ -1,10 +1,15 @@
-"""Removal of files left behind by older quivo install layouts.
+"""Uninstall of previously installed skill files.
 
-Older quivo versions installed Codex skills to .codex/prompts/<name>.md +
-.codex/scripts/<name>/ (now deprecated by Codex in favor of .agents/skills/),
-and both agents used unprefixed directory names before the q- namespace was
-introduced. Skill names come from .quivo-lock.json, so only quivo-managed
-installs are ever removed.
+quivo treats every install as a clean reinstall: whatever the previous
+install wrote (recorded as per-skill ``files`` lists in .quivo-lock.json)
+is removed first, then the current layout is written fresh. This keeps
+targets convergent across layout changes (e.g. .codex/prompts → .agents/
+skills, the q- prefix) without accumulating stale copies.
+
+``cleanup_legacy`` is the fallback for locks written before the file
+manifest existed: it removes the known historical layouts by name. Skill
+names always come from .quivo-lock.json, so only quivo-managed installs
+are ever touched.
 """
 
 from __future__ import annotations
@@ -12,6 +17,40 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from typing import Iterable
+
+
+def _prune_empty_dirs(target: Path, dirs: Iterable[Path]) -> None:
+    """Best-effort removal of now-empty directories, walking up to target."""
+    root = target.resolve()
+    for d in dirs:
+        cur = d
+        while cur.resolve() != root and root in cur.resolve().parents:
+            try:
+                cur.rmdir()
+            except OSError:
+                break
+            cur = cur.parent
+
+
+def remove_recorded_files(target: Path, lock: dict) -> list[Path]:
+    """Remove every file the lock's per-skill manifests record. Returns removed paths.
+
+    Paths are resolved against the target and anything escaping it is ignored.
+    """
+    root = target.resolve()
+    removed: list[Path] = []
+    parents: set[Path] = set()
+    for skill in lock.get("skills", []):
+        for rel in skill.get("files", []):
+            p = (target / rel).resolve()
+            if root not in p.parents:
+                continue
+            if p.is_file():
+                p.unlink()
+                removed.append(p)
+                parents.add(p.parent)
+    _prune_empty_dirs(target, parents)
+    return removed
 
 
 def _legacy_paths(target: Path, skill_name: str) -> list[Path]:
@@ -24,7 +63,7 @@ def _legacy_paths(target: Path, skill_name: str) -> list[Path]:
 
 
 def cleanup_legacy(target: Path, skill_names: Iterable[str]) -> list[Path]:
-    """Remove legacy install locations for the given skills. Returns removed paths."""
+    """Remove pre-manifest install layouts for the given skills. Returns removed paths."""
     removed: list[Path] = []
     for name in skill_names:
         for p in _legacy_paths(target, name):
@@ -35,12 +74,9 @@ def cleanup_legacy(target: Path, skill_names: Iterable[str]) -> list[Path]:
                 p.unlink()
                 removed.append(p)
 
-    # Prune legacy-only directories if now empty (.claude/skills and
-    # .agents/skills stay — they hold current installs).
-    for d in (target / ".codex" / "prompts", target / ".codex" / "scripts", target / ".codex"):
-        try:
-            d.rmdir()
-        except OSError:
-            pass
+    _prune_empty_dirs(
+        target,
+        [target / ".codex" / "prompts", target / ".codex" / "scripts"],
+    )
 
     return removed

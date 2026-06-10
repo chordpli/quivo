@@ -131,19 +131,23 @@ spec-kit 의 `context_file` 개념을 차용. `quivo init` / `quivo sync` 가 �
 
 ---
 
-## 5. 레거시 정리 — `src/quivo/cleanup.py`
+## 5. 클린 재설치 — `src/quivo/cleanup.py`
 
-구버전 quivo 레이아웃(`.codex/prompts/<name>.md` + `.codex/scripts/<name>/`,
-prefix 없는 `.claude/skills/<name>/`, `.agents/skills/<name>/`)을
-`quivo init` / `quivo sync` 가 자동 제거한다. 대상은 `.quivo-lock.json` 에
-기록된 quivo 관리 스킬뿐이므로 프로젝트 자체 스킬은 건드리지 않는다.
+모든 `quivo init` / `quivo sync` 는 **제거 후 재설치**다:
 
-`quivo sync` 는 버전이 같아도 **현재 레이아웃에 설치본이 없으면** 재설치한다
-(missing 감지). 따라서 구버전 레이아웃 프로젝트는 `quivo sync` 한 번으로
-새 레이아웃으로 수렴한다.
+1. `.quivo-lock.json` 의 스킬별 파일 매니페스트(`files`)에 기록된 이전
+   설치본을 전부 제거 (target 밖을 가리키는 경로는 무시 — traversal 방지)
+2. 매니페스트가 없는 구버전 락이면 알려진 과거 레이아웃
+   (`.codex/prompts/`, `.codex/scripts/`, prefix 없는 디렉토리)을 fallback 으로 제거
+3. 현재 레이아웃으로 새로 설치하고 락을 재작성
 
-`.quivo-lock.json` 의 스킬 항목에는 설치된 파일 목록(`files`)이 기록된다 —
-spec-kit 의 매니페스트 기반 제거를 차용한 것으로, 향후 uninstall 에 쓰인다.
+따라서 레이아웃·prefix 컨벤션이 바뀌어도 구버전 파일이 쌓이지 않고,
+어떤 상태의 프로젝트든 `quivo sync` 한 번으로 현재 레이아웃에 수렴한다.
+스킬 소스에서 제거된 스킬은 sync 시 언인스톨된다. 제거 대상은 락에 기록된
+quivo 관리 파일뿐이므로 프로젝트 자체 스킬은 건드리지 않는다.
+
+락에는 internal 스킬 포함 설치된 모든 파일이 기록된다 (spec-kit 의
+매니페스트 기반 제거 차용).
 
 ---
 

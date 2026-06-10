@@ -24,11 +24,14 @@ Versioning: skill bundle uses `skills-vX.Y.Z` tags; quivo CLI uses `cli-vX.Y.Z` 
   move under `metadata:` so Codex discovery doesn't reject the skill.
 - Managed skill-list block in agent context files (`CLAUDE.md` for Claude
   Code, `AGENTS.md` for Codex), regenerated on `init`/`sync`.
-- Automatic cleanup of legacy install layouts (`.codex/prompts/`,
-  `.codex/scripts/`, unprefixed skill directories); `sync` reinstalls
-  skills whose install is missing at the current layout.
-- `.quivo-lock.json` records installed file paths per skill (manifest for
-  future uninstall support).
+- Clean reinstall on `init`/`sync`: the previous install — every file
+  recorded in `.quivo-lock.json`'s per-skill manifests — is removed before
+  installing fresh, so layout/prefix changes never leave stale copies.
+  Known pre-manifest layouts (`.codex/prompts/`, `.codex/scripts/`,
+  unprefixed directories) are cleaned as a fallback, and skills dropped
+  from the skill source are uninstalled on `sync`.
+- `.quivo-lock.json` records installed file paths per skill (including
+  internal skills), the manifest driving clean reinstalls.
 - Repo resolution via `quivo.yml` (`repo:` key) → `QUIVO_REPO` env → built-in
   default, so a fork declares its skill source once.
 - Install-time injection: `.quivo/policy.md` (company policy) and

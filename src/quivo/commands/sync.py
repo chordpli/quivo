@@ -1,12 +1,16 @@
-"""quivo sync — re-install skills that have changed since last install.
+"""quivo sync — clean-reinstall installed skills from the latest release.
 
 Distinct from 'quivo update': this command refreshes skill *content* from
 the latest GitHub Release. To upgrade the quivo CLI itself, use 'quivo update'.
+
+Every sync is a clean reinstall: the previous install (recorded as per-skill
+file manifests in .quivo-lock.json) is removed first, then the locked skills
+are written fresh at the current layout. Targets therefore converge after
+layout changes without accumulating stale copies.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional
 
@@ -17,23 +21,14 @@ from rich.table import Table
 from quivo.adapters.base import ConflictError
 from quivo.adapters.claude import ClaudeAdapter
 from quivo.adapters.codex import CodexAdapter
-from quivo.cleanup import cleanup_legacy
+from quivo.cleanup import cleanup_legacy, remove_recorded_files
 from quivo.commands.init import _load_policy
 from quivo.context import update_context_file
+from quivo.lockfile import LOCK_FILE, load_lock, write_lock
 from quivo.registry import load_registry, resolve_install_set
 from quivo.release import ensure_skills_cache
 
 console = Console()
-
-LOCK_FILE = ".quivo-lock.json"
-
-
-def _load_lock(target: Path) -> Optional[dict]:
-    lock_path = target / LOCK_FILE
-    if not lock_path.exists():
-        return None
-    with open(lock_path, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def sync(
@@ -53,7 +48,7 @@ def sync(
         False,
         "--force",
         "-f",
-        help="Overwrite existing skill files.",
+        help="Overwrite existing skill files quivo did not write itself.",
     ),
     policy: Optional[Path] = typer.Option(
         None,
@@ -67,15 +62,15 @@ def sync(
         help="Skip policy injection even if .quivo/policy.md or bundled policy exists.",
     ),
 ) -> None:
-    """Refresh installed skill content from the latest GitHub Release.
+    """Clean-reinstall installed skill content from the latest GitHub Release.
 
-    Reads .quivo-lock.json, compares versions against the release manifest,
-    and re-installs changed skills. To upgrade the quivo CLI itself, use
+    Reads .quivo-lock.json, removes the previous install, and re-installs
+    every locked skill fresh. To upgrade the quivo CLI itself, use
     'quivo update'.
     """
     target = cwd or Path.cwd()
 
-    lock = _load_lock(target)
+    lock = load_lock(target)
     if lock is None:
         console.print(f"[red]No {LOCK_FILE} found in {target}. Run 'quivo init' first.[/red]")
         raise typer.Exit(1)
@@ -92,21 +87,6 @@ def sync(
 
     all_registry = {s.name: s for s in load_registry(skills_root)}
 
-    # Compare versions using the manifest bundled in the cache
-    manifest_path = skills_root / "manifest.json"
-    if not manifest_path.exists():
-        # Try parent in case skills_root points to a skills/ subdir
-        manifest_path = skills_root.parent / "manifest.json"
-
-    latest: dict[str, str] = {}
-    if manifest_path.exists():
-        with open(manifest_path, encoding="utf-8") as f:
-            manifest = json.load(f)
-        latest = {s["name"]: s["version"] for s in manifest.get("skills", [])}
-    else:
-        # Fall back: treat all as needing sync
-        latest = {name: skill.version for name, skill in all_registry.items()}
-
     try:
         policy_content = _load_policy(target, policy, no_policy, skills_root)
     except typer.BadParameter as e:
@@ -119,39 +99,40 @@ def sync(
     if agent in ("codex", "both"):
         adapters.append(CodexAdapter(target, force=force, policy_content=policy_content))
 
-    # A skill needs syncing when its version changed OR its install is missing
-    # at the current layout (e.g. project was installed with an older quivo
-    # that used .codex/prompts/ or unprefixed directories).
-    to_update = []
-    for name, old_ver in installed.items():
-        new_ver = latest.get(name)
-        missing = any(not a.skill_md_path(name).exists() for a in adapters)
-        if (new_ver and new_ver != old_ver) or missing:
-            to_update.append((name, old_ver, new_ver or old_ver))
+    # Version diff (informational — everything is reinstalled regardless)
+    to_update = [
+        (name, old_ver, all_registry[name].version)
+        for name, old_ver in installed.items()
+        if name in all_registry and all_registry[name].version != old_ver
+    ]
 
-    # Always converge legacy layouts, even when versions match.
-    removed = cleanup_legacy(target, installed.keys())
+    # Clean reinstall: remove the previous install via its file manifest,
+    # falling back to legacy-layout cleanup for locks that predate it.
+    removed = remove_recorded_files(target, lock)
+    removed += cleanup_legacy(target, installed.keys())
     if removed:
-        console.print(f"[dim]Removed {len(removed)} legacy install path(s).[/dim]")
+        console.print(f"[dim]Removed {len(removed)} path(s) from the previous install.[/dim]")
 
-    context_skills = [all_registry[n] for n in installed if n in all_registry]
+    for name in installed:
+        if name not in all_registry:
+            console.print(f"[yellow]'{name}' is no longer in the skill source — uninstalled.[/yellow]")
 
-    if not to_update:
-        for adapter in adapters:
-            update_context_file(target, adapter.context_file, context_skills)
-        console.print("[green]All skills are up to date.[/green]")
-        return
-
-    table = Table(title="Skills to Sync", show_header=True, header_style="bold magenta")
-    table.add_column("Skill")
-    table.add_column("Installed")
-    table.add_column("Latest")
-    for name, old_ver, new_ver in to_update:
-        table.add_row(name, old_ver, f"[green]{new_ver}[/green]")
-    console.print(table)
-
-    skills_to_install = [all_registry[n] for n, _, _ in to_update if n in all_registry]
+    skills_to_install = [all_registry[n] for n in installed if n in all_registry]
     install_set = resolve_install_set(skills_to_install, skills_root)
+    if not install_set:
+        console.print("[red]None of the locked skills exist in the skill source.[/red]")
+        raise typer.Exit(1)
+
+    if to_update:
+        table = Table(title="Skills to Sync", show_header=True, header_style="bold magenta")
+        table.add_column("Skill")
+        table.add_column("Installed")
+        table.add_column("Latest")
+        for name, old_ver, new_ver in to_update:
+            table.add_row(name, old_ver, f"[green]{new_ver}[/green]")
+        console.print(table)
+    else:
+        console.print("[dim]All versions up to date — reinstalling for a clean layout.[/dim]")
 
     files_by_skill: dict[str, list[str]] = {}
     for skill in install_set:
@@ -168,21 +149,22 @@ def sync(
         files_by_skill[skill.name] = files_written
         console.print(f"  [cyan]{skill.name}[/cyan] synced to {skill.version}")
 
+    context_skills = [s for s in install_set if not s.internal]
     for adapter in adapters:
         update_context_file(target, adapter.context_file, context_skills)
 
-    # Update lock file versions and installed-file manifest
-    new_lock_skills = []
-    for s in lock.get("skills", []):
-        entry = {"name": s["name"], "version": latest.get(s["name"], s["version"])}
-        files = files_by_skill.get(s["name"], s.get("files"))
-        if files:
-            entry["files"] = files
-        new_lock_skills.append(entry)
-    lock["skills"] = new_lock_skills
+    # Rebuild the lock from what was actually installed
+    lock["skills"] = [
+        {
+            "name": s.name,
+            "version": s.version,
+            "internal": s.internal,
+            "files": files_by_skill.get(s.name, []),
+        }
+        for s in install_set
+    ]
     if release:
         lock["release"] = release
-    lock_path = target / LOCK_FILE
-    lock_path.write_text(json.dumps(lock, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_lock(target, lock)
 
     console.print("\n[bold green]Sync complete.[/bold green]")

@@ -149,14 +149,19 @@ To refresh skill content to the latest available version, run:
 quivo sync
 ```
 
+Every sync is a **clean reinstall**: quivo first removes the previous install
+(every file recorded in `.quivo-lock.json`), then writes the locked skills
+fresh at the current layout. Old layouts never accumulate, and skills removed
+from the skill source are uninstalled.
+
 To sync a specific project:
 
 ```bash
 quivo sync --dir /path/to/your/project
 ```
 
-If existing files cause a conflict, inspect them first. Use `--force` only when
-you intentionally want quivo to overwrite installed skill files.
+If files quivo did not write itself cause a conflict, inspect them first.
+Use `--force` only when you intentionally want quivo to overwrite them.
 
 ```bash
 quivo sync --force

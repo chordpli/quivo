@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -15,8 +14,9 @@ from rich.table import Table
 from quivo.adapters.base import ConflictError
 from quivo.adapters.claude import ClaudeAdapter
 from quivo.adapters.codex import CodexAdapter
-from quivo.cleanup import cleanup_legacy
+from quivo.cleanup import cleanup_legacy, remove_recorded_files
 from quivo.context import update_context_file
+from quivo.lockfile import load_lock, write_lock
 from quivo.registry import SkillMeta, load_registry, resolve_install_set
 from quivo.release import ensure_skills_cache
 
@@ -27,9 +27,6 @@ class AgentChoice(str, Enum):
     claude = "claude"
     codex = "codex"
     both = "both"
-
-
-LOCK_FILE = ".quivo-lock.json"
 
 
 def _choose_agent_interactive() -> AgentChoice:
@@ -156,6 +153,20 @@ def init(
     if agent in (AgentChoice.codex, AgentChoice.both):
         adapters.append(CodexAdapter(target, force=force, policy_content=policy_content))
 
+    # Clean reinstall: remove whatever a previous install wrote (recorded in
+    # the lock's file manifests), plus pre-manifest legacy layouts, before
+    # writing the current layout fresh.
+    old_lock = load_lock(target)
+    removed: list[Path] = []
+    if old_lock:
+        removed += remove_recorded_files(target, old_lock)
+    legacy_names = {s.name for s in install_set}
+    if old_lock:
+        legacy_names |= {s["name"] for s in old_lock.get("skills", []) if s.get("name")}
+    removed += cleanup_legacy(target, legacy_names)
+    if removed:
+        console.print(f"[dim]Removed {len(removed)} path(s) from the previous install.[/dim]")
+
     results: list[dict] = []
     for skill in install_set:
         files_written: list[str] = []
@@ -187,28 +198,27 @@ def init(
 
     console.print(table)
 
-    # Clean up legacy install layouts (.codex/prompts|scripts, unprefixed dirs)
-    removed = cleanup_legacy(target, [s.name for s in install_set])
-    if removed:
-        console.print(f"[dim]Removed {len(removed)} legacy install path(s).[/dim]")
-
     # Refresh agent context files (CLAUDE.md / AGENTS.md managed block)
     context_skills = [s for s in install_set if not s.internal]
     for adapter in adapters:
         path = update_context_file(target, adapter.context_file, context_skills)
         console.print(f"[dim]Context file updated: {path}[/dim]")
 
-    # Write lock file
+    # Write lock file (internal skills included so a future clean reinstall
+    # can remove their files too)
     lock_data = {
         "agent": agent.value,
         "release": release or "latest",
         "skills": [
-            {"name": r["skill"].name, "version": r["skill"].version, "files": r["files"]}
+            {
+                "name": r["skill"].name,
+                "version": r["skill"].version,
+                "internal": r["skill"].internal,
+                "files": r["files"],
+            }
             for r in results
-            if not r["skill"].internal
         ],
     }
-    lock_path = target / LOCK_FILE
-    lock_path.write_text(json.dumps(lock_data, indent=2, ensure_ascii=False), encoding="utf-8")
+    lock_path = write_lock(target, lock_data)
     console.print(f"\n[dim]Lock file written: {lock_path}[/dim]")
     console.print("[bold green]Done.[/bold green]")

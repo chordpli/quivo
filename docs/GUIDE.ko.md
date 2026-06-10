@@ -147,13 +147,18 @@ quivo list --dir /path/to/your/project
 quivo sync
 ```
 
+모든 sync는 **클린 재설치**입니다: 이전 설치본(`.quivo-lock.json`에 기록된
+모든 파일)을 먼저 제거한 뒤 현재 레이아웃으로 새로 설치합니다. 레이아웃이
+바뀌어도 구버전 파일이 쌓이지 않고, 스킬 소스에서 제거된 스킬은 함께
+언인스톨됩니다.
+
 특정 프로젝트를 지정하려면 다음처럼 실행합니다.
 
 ```bash
 quivo sync --dir /path/to/your/project
 ```
 
-이미 파일이 있고 quivo가 덮어쓰기를 거부하면, 내용을 확인한 뒤 필요할 때만
+quivo가 직접 쓰지 않은 파일과 충돌하면 내용을 확인한 뒤 필요할 때만
 `--force`를 붙입니다.
 
 ```bash
