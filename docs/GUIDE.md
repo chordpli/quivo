@@ -89,8 +89,8 @@ The choices are:
 
 | Choice | Input | Install location |
 |--------|-------|------------------|
-| `1` | `claude` | `.claude/skills/` |
-| `2` | `codex` | `.codex/prompts/`, `.codex/scripts/` |
+| `1` | `claude` | `.claude/skills/q-<name>/` |
+| `2` | `codex` | `.agents/skills/q-<name>/` |
 | `3` | `both` | Both Claude Code and Codex |
 
 For scripts or docs where you want to avoid the interactive prompt, pass
@@ -117,9 +117,10 @@ quivo init --agent codex
 After installation, the target project should contain files like these:
 
 ```text
-.claude/skills/<skill-name>/SKILL.md
-.codex/prompts/<skill-name>.md
-.codex/scripts/<skill-name>/SKILL.md
+.claude/skills/q-<skill-name>/SKILL.md
+.agents/skills/q-<skill-name>/SKILL.md
+CLAUDE.md          # managed quivo skill-list block
+AGENTS.md          # managed quivo skill-list block
 .quivo-lock.json
 ```
 
@@ -381,8 +382,7 @@ quivo list --dir "$TMPPROJECT"
 ```
 
 The install path is healthy when the new skill appears under Claude Code's
-`.claude/skills/<skill-name>/` and Codex's `.codex/prompts/<skill-name>.md` plus
-`.codex/scripts/<skill-name>/`.
+`.claude/skills/q-<skill-name>/` and Codex's `.agents/skills/q-<skill-name>/`.
 
 ## Install from a local checkout
 
@@ -513,9 +513,8 @@ All skills are up to date.
 Finally, confirm that representative installed files exist:
 
 ```bash
-test -f "$SMOKEDIR/.claude/skills/author-skill/SKILL.md"
-test -f "$SMOKEDIR/.codex/prompts/author-skill.md"
-test -f "$SMOKEDIR/.codex/scripts/author-skill/SKILL.md"
+test -f "$SMOKEDIR/.claude/skills/q-author-skill/SKILL.md"
+test -f "$SMOKEDIR/.agents/skills/q-author-skill/SKILL.md"
 echo "smoke files ok"
 ```
 
@@ -554,7 +553,7 @@ written.
 | `pytest` is missing | Run `"$VENVDIR/bin/python" -m pip install -e . pytest` inside the clean setup. |
 | GitHub API error | For a private repo, set `GH_TOKEN` or `GITHUB_TOKEN`. |
 | You want to test without downloading a release | Run in local mode with `QUIVO_LOCAL_SKILLS="$PWD"`. |
-| Existing files conflict | Inspect the target `.claude` or `.codex` files, then use `--force` only if overwriting is intended. |
+| Existing files conflict | Inspect the target `.claude/skills` or `.agents/skills` files, then use `--force` only if overwriting is intended. |
 | `quivo sync` fails | Make sure the target project has `.quivo-lock.json`. If not, run `quivo init` first. |
 
 ## Next documents

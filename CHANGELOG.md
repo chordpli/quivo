@@ -13,7 +13,22 @@ Versioning: skill bundle uses `skills-vX.Y.Z` tags; quivo CLI uses `cli-vX.Y.Z` 
 - Initial open-source release of **quivo** — a forkable, multi-LLM skill
   distribution CLI for AI coding agents.
 - CLI commands: `init`, `sync`, `update` (self-upgrade), `list`, `doctor`.
-- Adapters for Claude Code (`.claude/skills/`) and Codex CLI (`.codex/`).
+- Adapters for Claude Code (`.claude/skills/`) and Codex CLI
+  (`.agents/skills/`, per the open agent skills standard).
+- `q-` namespace prefix for installed skills (directory and frontmatter
+  `name:`) so quivo skills never collide with a project's own skills.
+  Names are normalized to the validators' `^[a-z0-9-]+$` requirement.
+- Frontmatter normalization on install: only validator-accepted keys
+  (`name`, `description`, `license`, `allowed-tools`, `metadata`) stay
+  top-level; all other keys (`version`, `scope`, `risk`, `outputs`, ...)
+  move under `metadata:` so Codex discovery doesn't reject the skill.
+- Managed skill-list block in agent context files (`CLAUDE.md` for Claude
+  Code, `AGENTS.md` for Codex), regenerated on `init`/`sync`.
+- Automatic cleanup of legacy install layouts (`.codex/prompts/`,
+  `.codex/scripts/`, unprefixed skill directories); `sync` reinstalls
+  skills whose install is missing at the current layout.
+- `.quivo-lock.json` records installed file paths per skill (manifest for
+  future uninstall support).
 - Repo resolution via `quivo.yml` (`repo:` key) → `QUIVO_REPO` env → built-in
   default, so a fork declares its skill source once.
 - Install-time injection: `.quivo/policy.md` (company policy) and

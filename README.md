@@ -66,8 +66,11 @@ quivo init
 ```
 
 `quivo init` installs the bundled example skills into the current project:
-- `.claude/skills/<name>/` for Claude Code
-- `.codex/prompts/<name>.md` + `.codex/scripts/<name>/` for Codex CLI
+- `.claude/skills/q-<name>/` for Claude Code (invoked as `/q-<name>`)
+- `.agents/skills/q-<name>/` for Codex CLI (open agent skills standard, invoked as `$q-<name>`)
+
+It also maintains a managed skill-list block in `CLAUDE.md` / `AGENTS.md`,
+and cleans up install layouts left behind by older quivo versions.
 
 ---
 

@@ -15,6 +15,8 @@ from rich.table import Table
 from quivo.adapters.base import ConflictError
 from quivo.adapters.claude import ClaudeAdapter
 from quivo.adapters.codex import CodexAdapter
+from quivo.cleanup import cleanup_legacy
+from quivo.context import update_context_file
 from quivo.registry import SkillMeta, load_registry, resolve_install_set
 from quivo.release import ensure_skills_cache
 
@@ -33,7 +35,7 @@ LOCK_FILE = ".quivo-lock.json"
 def _choose_agent_interactive() -> AgentChoice:
     console.print("\n[bold]Which AI agent are you installing skills for?[/bold]")
     console.print("  [cyan]1[/cyan]  claude  — Claude Code (.claude/skills/)")
-    console.print("  [cyan]2[/cyan]  codex   — Codex CLI (.codex/prompts/)")
+    console.print("  [cyan]2[/cyan]  codex   — Codex CLI (.agents/skills/)")
     console.print("  [cyan]3[/cyan]  both    — Claude Code + Codex CLI")
     choice = Prompt.ask("Select", choices=["1", "2", "3", "claude", "codex", "both"], default="3")
     mapping = {"1": AgentChoice.claude, "2": AgentChoice.codex, "3": AgentChoice.both}
@@ -185,12 +187,23 @@ def init(
 
     console.print(table)
 
+    # Clean up legacy install layouts (.codex/prompts|scripts, unprefixed dirs)
+    removed = cleanup_legacy(target, [s.name for s in install_set])
+    if removed:
+        console.print(f"[dim]Removed {len(removed)} legacy install path(s).[/dim]")
+
+    # Refresh agent context files (CLAUDE.md / AGENTS.md managed block)
+    context_skills = [s for s in install_set if not s.internal]
+    for adapter in adapters:
+        path = update_context_file(target, adapter.context_file, context_skills)
+        console.print(f"[dim]Context file updated: {path}[/dim]")
+
     # Write lock file
     lock_data = {
         "agent": agent.value,
         "release": release or "latest",
         "skills": [
-            {"name": r["skill"].name, "version": r["skill"].version}
+            {"name": r["skill"].name, "version": r["skill"].version, "files": r["files"]}
             for r in results
             if not r["skill"].internal
         ],
