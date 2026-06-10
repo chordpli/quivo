@@ -14,15 +14,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from quivo.adapters.base import ConflictError, _FRONTMATTER_RE, _sanitize_name
+from quivo.adapters.base import ConflictError, SKILL_PREFIX, _FRONTMATTER_RE, _sanitize_name
 from quivo.registry import SkillMeta
-
-CMD_PREFIX = "v-"
 
 
 def cmd_install_name(skill_name: str) -> str:
     """File stem (without extension) for an installed command-format skill."""
-    return f"{CMD_PREFIX}{_sanitize_name(skill_name)}"
+    return f"{SKILL_PREFIX}{_sanitize_name(skill_name)}"
 
 
 class CommandsBaseAdapter(ABC):
