@@ -19,10 +19,8 @@ from rich.console import Console
 from rich.table import Table
 
 from quivo.adapters.base import ConflictError
-from quivo.adapters.claude import ClaudeAdapter
-from quivo.adapters.codex import CodexAdapter
 from quivo.cleanup import cleanup_legacy, remove_recorded_files
-from quivo.commands.init import _load_policy
+from quivo.commands.init import _build_adapters, _load_policy
 from quivo.context import update_context_file
 from quivo.lockfile import LOCK_FILE, load_lock, write_lock
 from quivo.registry import load_registry, resolve_install_set
@@ -75,10 +73,15 @@ def sync(
         console.print(f"[red]No {LOCK_FILE} found in {target}. Run 'quivo init' first.[/red]")
         raise typer.Exit(1)
 
-    agent = lock.get("agent", "both")
+    from quivo.commands.init import AgentChoice
+    agent_str = lock.get("agent", "both")
+    try:
+        agent = AgentChoice(agent_str)
+    except ValueError:
+        agent = AgentChoice.both
+
     installed: dict[str, str] = {s["name"]: s["version"] for s in lock.get("skills", [])}
 
-    # Obtain skills source
     try:
         skills_root = ensure_skills_cache(release_tag=release)
     except Exception as e:
@@ -93,11 +96,7 @@ def sync(
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
 
-    adapters = []
-    if agent in ("claude", "both"):
-        adapters.append(ClaudeAdapter(target, force=force, policy_content=policy_content))
-    if agent in ("codex", "both"):
-        adapters.append(CodexAdapter(target, force=force, policy_content=policy_content))
+    adapters = _build_adapters(agent, target, force, policy_content)
 
     # Version diff (informational — everything is reinstalled regardless)
     to_update = [
@@ -140,6 +139,9 @@ def sync(
         try:
             for adapter in adapters:
                 adapter.remove_installed(skill.name)
+                # Respect the skill's declared agent support list.
+                if skill.agents and adapter.agent_name not in skill.agents:
+                    continue
                 paths = adapter.install(skill)
                 files_written.extend(str(p.relative_to(target)) for p in paths)
         except ConflictError as e:
@@ -151,9 +153,14 @@ def sync(
 
     context_skills = [s for s in install_set if not s.internal]
     for adapter in adapters:
-        update_context_file(target, adapter.context_file, context_skills)
+        update_context_file(
+            target,
+            adapter.context_file,
+            context_skills,
+            mdc=adapter.context_file_mdc,
+            name_fn=adapter.install_display_name,
+        )
 
-    # Rebuild the lock from what was actually installed
     lock["skills"] = [
         {
             "name": s.name,

@@ -1,6 +1,6 @@
 name: ripple
 version: 0.1.0
 description: "구현 후 테스트가 잡지 못하는 사이드 이펙트를 9 카테고리·3 severity로 탐지·해결한다. scan → clarify → resolve → check 4단계. delta-anchored, general code review 아님."
-agents: [claude, codex]
+agents: [claude, codex, gemini, qwen, windsurf, cursor]
 internal: false
 requires: []

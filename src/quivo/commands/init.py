@@ -11,9 +11,14 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
-from quivo.adapters.base import ConflictError
+from quivo.adapters.base import BaseAdapter, ConflictError
+from quivo.adapters.commands_base import CommandsBaseAdapter
 from quivo.adapters.claude import ClaudeAdapter
 from quivo.adapters.codex import CodexAdapter
+from quivo.adapters.cursor import CursorAdapter
+from quivo.adapters.gemini import GeminiAdapter
+from quivo.adapters.qwen import QwenAdapter
+from quivo.adapters.windsurf import WindsurfAdapter
 from quivo.cleanup import cleanup_legacy, remove_recorded_files
 from quivo.context import update_context_file
 from quivo.lockfile import load_lock, write_lock
@@ -22,23 +27,68 @@ from quivo.release import ensure_skills_cache
 
 console = Console()
 
+# Ordered list of all supported agent names (determines interactive menu order).
+ALL_AGENTS = ["claude", "codex", "gemini", "qwen", "windsurf", "cursor"]
+
 
 class AgentChoice(str, Enum):
     claude = "claude"
     codex = "codex"
-    both = "both"
+    gemini = "gemini"
+    qwen = "qwen"
+    windsurf = "windsurf"
+    cursor = "cursor"
+    both = "both"   # backward-compat alias: claude + codex
+    all = "all"     # all supported agents
+
+
+def _build_adapters(
+    agent: AgentChoice,
+    target: Path,
+    force: bool,
+    policy_content: Optional[str],
+) -> list[BaseAdapter | CommandsBaseAdapter]:
+    """Instantiate the adapters implied by the agent choice."""
+    factory: dict[str, BaseAdapter | CommandsBaseAdapter] = {
+        "claude":    ClaudeAdapter(target, force=force, policy_content=policy_content),
+        "codex":     CodexAdapter(target, force=force, policy_content=policy_content),
+        "gemini":    GeminiAdapter(target, force=force, policy_content=policy_content),
+        "qwen":      QwenAdapter(target, force=force, policy_content=policy_content),
+        "windsurf":  WindsurfAdapter(target, force=force, policy_content=policy_content),
+        "cursor":    CursorAdapter(target, force=force, policy_content=policy_content),
+    }
+    if agent == AgentChoice.both:
+        names = ["claude", "codex"]
+    elif agent == AgentChoice.all:
+        names = ALL_AGENTS
+    else:
+        names = [agent.value]
+    return [factory[n] for n in names]
 
 
 def _choose_agent_interactive() -> AgentChoice:
     console.print("\n[bold]Which AI agent are you installing skills for?[/bold]")
-    console.print("  [cyan]1[/cyan]  claude  — Claude Code (.claude/skills/)")
-    console.print("  [cyan]2[/cyan]  codex   — Codex CLI (.agents/skills/)")
-    console.print("  [cyan]3[/cyan]  both    — Claude Code + Codex CLI")
-    choice = Prompt.ask("Select", choices=["1", "2", "3", "claude", "codex", "both"], default="3")
-    mapping = {"1": AgentChoice.claude, "2": AgentChoice.codex, "3": AgentChoice.both}
-    if choice in mapping:
-        return mapping[choice]
-    return AgentChoice(choice)
+    console.print("  [cyan]1[/cyan]  claude   — Claude Code (.claude/skills/)")
+    console.print("  [cyan]2[/cyan]  codex    — Codex CLI (.agents/skills/)")
+    console.print("  [cyan]3[/cyan]  gemini   — Gemini CLI (.gemini/commands/)")
+    console.print("  [cyan]4[/cyan]  qwen     — Qwen Code (.qwen/commands/)")
+    console.print("  [cyan]5[/cyan]  windsurf — Windsurf (.windsurf/workflows/)")
+    console.print("  [cyan]6[/cyan]  cursor   — Cursor (.cursor/skills/)")
+    console.print("  [cyan]7[/cyan]  both     — Claude Code + Codex")
+    console.print("  [cyan]8[/cyan]  all      — All agents")
+    valid = ["1", "2", "3", "4", "5", "6", "7", "8"] + ALL_AGENTS + ["both", "all"]
+    choice = Prompt.ask("Select", choices=valid, default="7")
+    mapping = {
+        "1": AgentChoice.claude,
+        "2": AgentChoice.codex,
+        "3": AgentChoice.gemini,
+        "4": AgentChoice.qwen,
+        "5": AgentChoice.windsurf,
+        "6": AgentChoice.cursor,
+        "7": AgentChoice.both,
+        "8": AgentChoice.all,
+    }
+    return mapping.get(choice, AgentChoice(choice))
 
 
 def _load_policy(
@@ -71,7 +121,7 @@ def init(
         None,
         "--agent",
         "-a",
-        help="Target agent: claude, codex, or both.",
+        help="Target agent: claude, codex, gemini, qwen, windsurf, cursor, both, or all.",
         case_sensitive=False,
     ),
     cwd: Optional[Path] = typer.Option(
@@ -115,7 +165,6 @@ def init(
     for offline/dev mode). Use 'quivo sync' to refresh skill content,
     'quivo update' to upgrade the quivo CLI itself.
     """
-    # Resolve target directory
     if here and cwd is not None:
         console.print("[red]Error: --here and --dir are mutually exclusive.[/red]")
         raise typer.Exit(1)
@@ -126,7 +175,6 @@ def init(
 
     console.print(f"\n[bold green]Installing skills[/bold green] → agent=[cyan]{agent.value}[/cyan]  dir=[dim]{target}[/dim]\n")
 
-    # Obtain skills source (cache or local override)
     try:
         skills_root = ensure_skills_cache(release_tag=release)
     except Exception as e:
@@ -137,7 +185,6 @@ def init(
     public_skills = [s for s in all_skills if not s.internal]
     install_set = resolve_install_set(public_skills, skills_root)
 
-    # Load policy content
     try:
         policy_content = _load_policy(target, policy, no_policy, skills_root)
     except typer.BadParameter as e:
@@ -147,11 +194,7 @@ def init(
     if policy_content:
         console.print("[dim]Policy injection: enabled (.quivo/policy.md)[/dim]")
 
-    adapters = []
-    if agent in (AgentChoice.claude, AgentChoice.both):
-        adapters.append(ClaudeAdapter(target, force=force, policy_content=policy_content))
-    if agent in (AgentChoice.codex, AgentChoice.both):
-        adapters.append(CodexAdapter(target, force=force, policy_content=policy_content))
+    adapters = _build_adapters(agent, target, force, policy_content)
 
     # Clean reinstall: remove whatever a previous install wrote (recorded in
     # the lock's file manifests), plus pre-manifest legacy layouts, before
@@ -172,6 +215,9 @@ def init(
         files_written: list[str] = []
         try:
             for adapter in adapters:
+                # Respect the skill's declared agent support list.
+                if skill.agents and adapter.agent_name not in skill.agents:
+                    continue
                 paths = adapter.install(skill)
                 files_written.extend(str(p.relative_to(target)) for p in paths)
         except ConflictError as e:
@@ -180,13 +226,11 @@ def init(
             raise typer.Exit(1)
         results.append({"skill": skill, "files": files_written})
 
-    # Print summary table
     table = Table(title="Installed Skills", show_header=True, header_style="bold magenta")
     table.add_column("Skill", style="cyan", no_wrap=True)
     table.add_column("Version")
     table.add_column("Internal")
     table.add_column("Files written")
-
     for r in results:
         skill: SkillMeta = r["skill"]
         table.add_row(
@@ -195,17 +239,21 @@ def init(
             "[dim]yes[/dim]" if skill.internal else "no",
             str(len(r["files"])),
         )
-
     console.print(table)
 
-    # Refresh agent context files (CLAUDE.md / AGENTS.md managed block)
+    # Refresh agent context files; pass the adapter's display-name function so
+    # commands adapters show v-<name> and skills adapters show q-<name>.
     context_skills = [s for s in install_set if not s.internal]
     for adapter in adapters:
-        path = update_context_file(target, adapter.context_file, context_skills)
+        path = update_context_file(
+            target,
+            adapter.context_file,
+            context_skills,
+            mdc=adapter.context_file_mdc,
+            name_fn=adapter.install_display_name,
+        )
         console.print(f"[dim]Context file updated: {path}[/dim]")
 
-    # Write lock file (internal skills included so a future clean reinstall
-    # can remove their files too)
     lock_data = {
         "agent": agent.value,
         "release": release or "latest",

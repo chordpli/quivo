@@ -1,6 +1,6 @@
 name: aws-access
 version: 0.1.0
 description: "AWS 자격증명을 설정·검증하고 AWS CLI 작업의 진입점을 제공한다. 액세스 키/SSO 지원, 프로파일·리전을 config/env/인자로 해결."
-agents: [claude, codex]
+agents: [claude, codex, gemini, qwen, windsurf, cursor]
 internal: false
 requires: []

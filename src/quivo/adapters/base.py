@@ -56,6 +56,8 @@ class BaseAdapter(ABC):
     path_ref: str
     # Agent context file maintained at the target root.
     context_file: str
+    # Set to True for adapters whose context file uses MDC frontmatter (e.g. Cursor).
+    context_file_mdc: bool = False
 
     def __init__(
         self,
@@ -70,8 +72,12 @@ class BaseAdapter(ABC):
     @property
     @abstractmethod
     def agent_name(self) -> str:
-        """Human-readable agent identifier."""
+        """Human-readable agent identifier (used for agents: field filtering)."""
         ...
+
+    def install_display_name(self, skill_name: str) -> str:
+        """Name as shown in context files and skill lists."""
+        return install_name(skill_name)
 
     def skills_root(self) -> Path:
         return self.target_dir.joinpath(*self.skills_root_parts)

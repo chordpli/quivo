@@ -54,12 +54,24 @@ def remove_recorded_files(target: Path, lock: dict) -> list[Path]:
 
 
 def _legacy_paths(target: Path, skill_name: str) -> list[Path]:
-    return [
-        target / ".codex" / "prompts" / f"{skill_name}.md",
-        target / ".codex" / "scripts" / skill_name,
+    # Skills-format layouts (folder-based, q- prefix or bare name)
+    skills_dirs = [
         target / ".claude" / "skills" / skill_name,
         target / ".agents" / "skills" / skill_name,
+        target / ".cursor" / "skills" / skill_name,
     ]
+    # Commands-format layouts (single file, v- prefix or bare name)
+    commands_files = [
+        target / ".gemini" / "commands" / f"{skill_name}.md",
+        target / ".qwen" / "commands" / f"{skill_name}.md",
+        target / ".windsurf" / "workflows" / f"{skill_name}.md",
+    ]
+    # Pre-q-prefix legacy paths
+    old_codex = [
+        target / ".codex" / "prompts" / f"{skill_name}.md",
+        target / ".codex" / "scripts" / skill_name,
+    ]
+    return skills_dirs + commands_files + old_codex
 
 
 def cleanup_legacy(target: Path, skill_names: Iterable[str]) -> list[Path]:
@@ -76,7 +88,14 @@ def cleanup_legacy(target: Path, skill_names: Iterable[str]) -> list[Path]:
 
     _prune_empty_dirs(
         target,
-        [target / ".codex" / "prompts", target / ".codex" / "scripts"],
+        [
+            target / ".codex" / "prompts",
+            target / ".codex" / "scripts",
+            target / ".gemini" / "commands",
+            target / ".qwen" / "commands",
+            target / ".windsurf" / "workflows",
+            target / ".cursor" / "skills",
+        ],
     )
 
     return removed
